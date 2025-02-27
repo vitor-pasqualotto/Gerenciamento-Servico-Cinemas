@@ -7,7 +7,14 @@ from .. import models, schemas, database, auth
 router = APIRouter()
 
 @router.post("/usuarios/", response_model=schemas.Usuario)
-def create_usuario(usuario: schemas.UsuarioCreate, db: Session = Depends(database.get_db)):
+def create_usuario(
+    usuario: schemas.UsuarioCreate, 
+    db: Session = Depends(database.get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.tipo_usuario != "Admin":
+        raise HTTPException(status_code=400, detail="Usuáio sem permissão")
+
     db_usuario = db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first()
     if db_usuario:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
@@ -40,6 +47,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 @router.get("/usuarios/me", response_model=schemas.Usuario)
 def read_current_user(current_user: models.Usuario = Depends(auth.get_current_user)):
+    if current_user.tipo_usuario != "Admin":
+        raise HTTPException(status_code=400, detail="Usuáio sem permissão")
+    
     return current_user
 
 @router.put("/usuarios/{user_id}", response_model=schemas.Usuario)
@@ -49,24 +59,30 @@ def update_usuario(
     db: Session = Depends(database.get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
-    # Permitir que o próprio usuário atualize seu registro ou que um Admin atualize qualquer usuário.
+    # Permitir que um Admin atualize qualquer usuário.
     if current_user.tipo_usuario != "Admin" and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Operação não permitida")
 
     user_db = db.query(models.Usuario).filter(models.Usuario.id == user_id).first()
+
     if not user_db:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
     if usuario_update.nome is not None:
         user_db.nome = usuario_update.nome
+
     if usuario_update.email is not None:
         user_db.email = usuario_update.email
+
     if usuario_update.senha is not None:
         user_db.senha = auth.get_password_hash(usuario_update.senha)
+
     if usuario_update.tipo_usuario is not None:
         user_db.tipo_usuario = usuario_update.tipo_usuario
+
     if usuario_update.empresa_id is not None:
         user_db.empresa_id = usuario_update.empresa_id
+
     if usuario_update.cinema_id is not None:
         user_db.cinema_id = usuario_update.cinema_id
 
