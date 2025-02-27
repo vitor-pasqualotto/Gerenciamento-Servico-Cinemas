@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from .. import models, schemas, database, auth
+from typing import List
 
 
 router = APIRouter()
@@ -89,3 +90,14 @@ def update_usuario(
     db.commit()
     db.refresh(user_db)
     return user_db
+
+@router.get("/usuarios/", response_model=List[schemas.Usuario])
+def get_usuarios(
+    db: Session = Depends(database.get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    # Se for Admin, retorna todos os usuários
+    if current_user.tipo_usuario != "Admin":
+        raise HTTPException(status_code=403, detail="Operação não permitida")
+    
+    return db.query(models.Usuario).all()

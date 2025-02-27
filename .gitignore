@@ -1,7 +1,7 @@
 backend/__pycache__/
 backend/routes/__pycache__/
-static/uploads/imagem_1.jpeg
-static/uploads/imagem_2.jpeg
+static
+static
 .env
 readme.txt
 dev.db

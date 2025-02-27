@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas, database, auth
+from typing import List
 
 from pathlib import Path
 import shutil
@@ -143,7 +144,8 @@ def update_servico(
 # Endpoint para listar serviços (filtrados conforme o tipo de usuário)
 @router.get("/servicos/", response_model=list[schemas.Servico])
 def read_servicos(
-    skip: int = 0, limit: int = 10,
+    #skip: int = 0, 
+    #limit: int = 10,
     db: Session = Depends(database.get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
@@ -159,4 +161,16 @@ def read_servicos(
     else:
         servicos = db.query(models.Servico)
 
-    return servicos.offset(skip).limit(limit).all()
+    return servicos.all()
+
+@router.get("/historico_status/", response_model=List[schemas.HistoricoStatus])
+def get_historico_status(
+    db: Session = Depends(database.get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    # Verifica se o usuário é Admin
+    if current_user.tipo_usuario != "Admin":
+        raise HTTPException(status_code=403, detail="Apenas Admin pode visualizar o histórico de status.")
+
+    # Retorna todos os registros de histórico de status
+    return db.query(models.HistoricoStatus).all()
