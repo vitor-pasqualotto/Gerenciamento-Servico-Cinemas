@@ -48,8 +48,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 @router.get("/usuarios/me", response_model=schemas.Usuario)
 def read_current_user(current_user: models.Usuario = Depends(auth.get_current_user)):
-    if current_user.tipo_usuario != "Admin":
-        raise HTTPException(status_code=400, detail="Usuáio sem permissão")
+    #if current_user.tipo_usuario != "Admin":
+       #raise HTTPException(status_code=400, detail="Usuáio sem permissão")
     
     return current_user
 

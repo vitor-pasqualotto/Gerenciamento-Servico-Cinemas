@@ -17,7 +17,7 @@ def create_servico(
 ):
     # Verificar se não é Encarregado nem Admin e lança um erro
     if current_user.tipo_usuario != "Encarregado" and current_user.tipo_usuario != "Admin":
-        raise HTTPException(status_code=403, detail="Operação permitida apenas para Encarregados")
+        raise HTTPException(status_code=403, detail="Operação permitida apenas para Encarregados e Admin")
     
     # Verifica se as fotos foram passadas e lança um erro
     if not servico.fotos_urls or len(servico.fotos_urls) == 0:
