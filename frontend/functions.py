@@ -71,8 +71,10 @@ def fetch_cinemas(empresa_id):
     response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
     if response.status_code == 200:
         cinemas = response.json()
+        st.write("Resposta da API cinemas:", cinemas)  # Debug
         return {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa_id}
     else:
+        st.error("Erro ao buscar cinemas!")
         return {}
 
 def fetch_salas(cinema_id):
@@ -90,7 +92,7 @@ def callback_empresas():
     st.session_state.empresas = fetch_empresas()
 
 def callback_cinemas():
-    st.session_state.cinemas = fetch_cinemas(st.session_state.empresa_id)
+    st.session_state.cinemas = fetch_cinemas(st.session_state.empresa_id) 
 
 def callback_salas():
     st.session_state.salas = fetch_salas(st.session_state.cinema_id)
@@ -216,12 +218,18 @@ def create_usuario():
     tipo_usuario = st.selectbox("Tipo de Usuário", ["Gerente", "Representante", "Encarregado"], key="tipo_usuario")
     
     if tipo_usuario in ["Gerente", "Representante"]:
-        empresa = st.selectbox("Empresa", list(st.session_state.empresas.values()), key="empresa_id", on_change=callback_cinemas)
+        empresas = {0: "Selecionar"}
+        empresas.update(st.session_state.empresas)
+        empresa = st.selectbox("Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], on_change=callback_cinemas, index=0)
         
         if tipo_usuario == "Gerente":
-            cinema = st.selectbox("Cinema", list(st.session_state.cinemas.values()), key="cinema_id", on_change=callback_salas)
+            cinemas = {0: "Selecionar"}
+            cinemas.update(st.session_state.cinemas)
+            cinema = st.selectbox("Cinema", options=list(cinemas.keys()), key="cinema_id", format_func=lambda x: cinemas[x], on_change=callback_salas, index=0)
+
         else:
             cinema = None
+
     else:
         empresa, cinema = None, None
     

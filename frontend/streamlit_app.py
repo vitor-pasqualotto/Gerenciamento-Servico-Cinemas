@@ -14,6 +14,16 @@ def main():
     else:
         user = get_current_user()
         if user:
+            # Inicializa session state se necessário
+            if "empresas" not in st.session_state:
+                st.session_state.empresas = fetch_empresas()
+            if "cinemas" not in st.session_state:
+                st.session_state.cinemas = {}
+            if "salas" not in st.session_state:
+                st.session_state.salas = {}
+            if "usuario_id" not in st.session_state:
+                st.session_state.usuario_id = requests.get(f"{API_BASE_URL}/usuarios/me", headers={"Authorization": f"Bearer {st.session_state.get('token')}"}).json().get("id", None)
+
             st.write(user.get("nome"))
             tipo_usuario = user.get("tipo_usuario")
 
