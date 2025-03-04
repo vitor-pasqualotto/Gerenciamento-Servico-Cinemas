@@ -17,17 +17,18 @@ def main():
             st.write(user.get("nome"))
             tipo_usuario = user.get("tipo_usuario")
 
-            if tipo_usuario == "Admin":
-                menu_admin()
+            menus = {
+                "Admin": menu_admin,
+                "Encarregado": menu_encarregado,
+                "Gerente": menu_gerente,
+                "Representante": menu_representante
+            }
 
-            if tipo_usuario == "Encarregado":
-                menu_encarregado()
-
-            if tipo_usuario == "Gerente":
-                menu_gerente()
+            if tipo_usuario in menus:
+                menus[tipo_usuario]()  # Chama o menu correto dinamicamente
 
         else:
-            st.erro("Não foi possível obter as informações do usuário")
+            st.error("Não foi possível obter as informações do usuário")
             st.stop()
 
 if __name__ == "__main__":

@@ -11,29 +11,94 @@ API_BASE_URL = "http://localhost:8000"
 
 def login():
     st.sidebar.header("Login")
-    email = st.sidebar.text_input("Email")
-    senha = st.sidebar.text_input("Senha", type="password")
-    if st.sidebar.button("Entrar"):
+
+    if "email" not in st.session_state:
+        st.session_state.email = ""
+
+    if "senha" not in st.session_state:
+        st.session_state.senha = ""
+
+    email = st.sidebar.text_input("Email", value=st.session_state.email)
+    senha = st.sidebar.text_input("Senha", type="password", value=st.session_state.senha)
+
+    if st.sidebar.button("Entrar"): 
         data = {"username": email, "password": senha}
         response = requests.post(f"{API_BASE_URL}/token", data=data)
+        
         if response.status_code == 200:
             st.session_state.token = response.json().get("access_token")
+            st.session_state.email = email
+            st.session_state.senha = senha
             st.sidebar.success("Login efetuado com sucesso!")
+
+            # Força uma segunda execução
+            st.rerun()
+
         else:
             st.sidebar.error("Erro no login. Verifique suas credenciais.")
 
+@st.cache_data
 def get_current_user():
     token = st.session_state.get("token")
     if not token:
         return None
+    
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{API_BASE_URL}/usuarios/me", headers=headers)
+
     if response.status_code == 200:
         return response.json()
+    
     return None 
 
+# ============ CALLBACKS ============
+
+def fetch_empresas():
+    """Recupera todas as empresas e retorna um dicionário {id: nome}."""
+    token = st.session_state.get("token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
+    if response.status_code == 200:
+        empresas = response.json()
+        return {empresa['id']: empresa['nome'] for empresa in empresas}
+    else:
+        return {}
+
+def fetch_cinemas(empresa_id):
+    """Recupera todos os cinemas de uma empresa específica."""
+    token = st.session_state.get("token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
+    if response.status_code == 200:
+        cinemas = response.json()
+        return {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa_id}
+    else:
+        return {}
+
+def fetch_salas(cinema_id):
+    """Recupera todas as salas de um cinema específico."""
+    token = st.session_state.get("token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
+    if response.status_code == 200:
+        salas = response.json()
+        return {sala['id']: sala['nome'] for sala in salas if sala['cinema_id'] == cinema_id}
+    else:
+        return {}
+
+def callback_empresas():
+    st.session_state.empresas = fetch_empresas()
+
+def callback_cinemas():
+    st.session_state.cinemas = fetch_cinemas(st.session_state.empresa_id)
+
+def callback_salas():
+    st.session_state.salas = fetch_salas(st.session_state.cinema_id)
+
 # ============ AÇÕES DISPONÍVEIS ============
+
 # READ
+@st.cache_data
 def show_usuarios(): 
     token = st.session_state.get("token")
     if token:
@@ -51,6 +116,7 @@ def show_usuarios():
     else:
         st.error("Usuário não autenticado.")
 
+@st.cache_data
 def show_empresas(): 
     token = st.session_state.get("token")
     if token:
@@ -68,6 +134,7 @@ def show_empresas():
     else:
         st.error("Usuário não autenticado.")
 
+@st.cache_data
 def show_cinemas(): 
     token = st.session_state.get("token")
     if token:
@@ -85,6 +152,7 @@ def show_cinemas():
     else:
         st.error("Usuário não autenticado.")
 
+@st.cache_data
 def show_salas():
     token = st.session_state.get("token")
     if token:
@@ -102,6 +170,7 @@ def show_salas():
     else:
         st.error("Usuário não autenticado.")
 
+@st.cache_data
 def show_servicos(): 
     token = st.session_state.get("token")
     if token:
@@ -119,6 +188,7 @@ def show_servicos():
     else:
         st.error("Usuário não autenticado.")
 
+@st.cache_data
 def show_historico_status(): 
     token = st.session_state.get("token")
     if token:
@@ -138,6 +208,33 @@ def show_historico_status():
 
 # CREATE
 def create_usuario():
+
+    st.header("Registrar Novo Usuário")
+    nome_usuario = st.text_input("Nome do Usuário")
+    email = st.text_input("Email Usuário")
+    senha = st.text_input("Senha Usuário", type='password')
+    tipo_usuario = st.selectbox("Tipo de Usuário", ["Gerente", "Representante", "Encarregado"], key="tipo_usuario")
+    
+    if tipo_usuario in ["Gerente", "Representante"]:
+        empresa = st.selectbox("Empresa", list(st.session_state.empresas.values()), key="empresa_id", on_change=callback_cinemas)
+        
+        if tipo_usuario == "Gerente":
+            cinema = st.selectbox("Cinema", list(st.session_state.cinemas.values()), key="cinema_id", on_change=callback_salas)
+        else:
+            cinema = None
+    else:
+        empresa, cinema = None, None
+    
+    if st.button("Registrar"):
+        token = st.session_state.get("token")
+        headers = {"Authorization": f"Bearer {token}"}
+        payload = {"nome": nome_usuario, "email": email, "senha": senha, "tipo_usuario": tipo_usuario, "empresa_id": empresa, "cinema_id": cinema}
+        response = requests.post(f"{API_BASE_URL}/usuarios/", json=payload, headers=headers)
+        st.success("Usuário registrado com sucesso!") if response.status_code == 200 else st.error("Erro ao registrar o usuário.")
+
+
+
+    """ 
     token = st.session_state.get("token")
     if token:
         headers = {"Authorization": f"Bearer {token}"}
@@ -221,7 +318,7 @@ def create_usuario():
     
     else:
         st.error("Usuário não autenticado.")
-
+"""
 def create_empresa():
     token = st.session_state.get("token")
     if token:
@@ -1150,14 +1247,19 @@ def menu_admin():
     st.title("Admin")
     st.subheader("Aqui você pode gerenciar todo o seu negócio")
 
+    if "pagina" not in st.session_state:
+        st.session_state.pagina = "Dashboard"
+
     with st.sidebar:
         st.title("Menu")
         pagina = st.radio("Escolha uma página:", ["Dashboard", "Empresas", "Cinemas", "Salas", "Serviços", "Usuários"])
 
-    if pagina == "Dashboard":
+    st.session_state.pagina = pagina
+
+    if st.session_state.pagina == "Dashboard":
         st.title("Em desenvolvimento...")
 
-    if pagina == "Empresas":
+    if st.session_state.pagina == "Empresas":
         st.title("Empresas")
         acao = st.radio("Escolha a ação que deseja realizar:", ["Criar Empresa", "Atualizar Empresa", "Listar Empresas"])
 
@@ -1170,7 +1272,7 @@ def menu_admin():
         if acao == "Listar Empresas":
             show_empresas()
 
-    if pagina == "Cinemas":
+    if st.session_state.pagina == "Cinemas":
         st.title("Cinemas")
         acao = st.radio("Escolha a ação que deseja realizar:", ["Criar Cinema", "Atualizar Cinema", "Listar Cinemas"])
 
@@ -1183,7 +1285,7 @@ def menu_admin():
         if acao == "Listar Cinemas":
             show_cinemas()
 
-    if pagina == "Salas":
+    if st.session_state.pagina == "Salas":
         st.title("Salas")
         acao = st.radio("Escolha a ação que deseja realizar:", ["Criar Sala", "Atualizar Sala", "Listar Salas"])
 
@@ -1196,7 +1298,7 @@ def menu_admin():
         if acao == "Listar Salas":
             show_salas()
 
-    if pagina == "Serviços":
+    if st.session_state.pagina == "Serviços":
         st.title("Serviços")
         acao = st.radio("Escolha a ação que deseja realizar:", ["Criar Serviço", "Atualizar Serviço", "Listar Serviços"])
 
@@ -1209,7 +1311,7 @@ def menu_admin():
         if acao == "Listar Serviços":
             show_servicos()
 
-    if pagina == "Usuários":
+    if st.session_state.pagina == "Usuários":
         st.title("Usuários")
         acao = st.radio("Escolha a ação que deseja realizar:", ["Criar Usuário", "Atualizar Usuário", "Listar Usuários"])
 
@@ -1238,7 +1340,6 @@ def menu_encarregado():
     if acao == "Serviços Recusados":
         show_servicos()
 
-
 def menu_gerente():
     st.title("Gerente")
     st.subheader("Aqui você pode gerenciar seu Cinema")
@@ -1251,5 +1352,8 @@ def menu_gerente():
     if acao == "Serviços Pendentes":
         show_servicos()
 
-def menu_encarregado():
-    ...
+def menu_representante():
+    st.title("Representante")
+    st.subheader("Aqui você pode ver os serviços concluídos do seu Cinema")
+    
+    show_servicos()
