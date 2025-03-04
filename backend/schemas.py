@@ -12,6 +12,11 @@ class EmpresaCinemaBase(BaseModel):
 class EmpresaCinemaCreate(EmpresaCinemaBase):
     pass
 
+class EmpresaCinemaUpdate(BaseModel):
+    nome: Optional[str] = None
+    cnpj: Optional[str] = None
+    contato: Optional[str] = None
+
 class EmpresaCinema(EmpresaCinemaBase):
     id: int
     class Config:
@@ -26,6 +31,11 @@ class CinemaBase(BaseModel):
 class CinemaCreate(CinemaBase):
     empresa_id: int
 
+class CinemaUpdate(BaseModel):
+    nome: Optional[str] = None
+    endereco: Optional[str] = None
+    empresa_id: Optional[int] = None  # Permite atualizar para outra empresa, se necessário
+
 class Cinema(CinemaBase):
     id: int
     empresa_id: int
@@ -39,6 +49,10 @@ class SalaBase(BaseModel):
 
 class SalaCreate(SalaBase):
     cinema_id: int
+
+class SalaUpdate(BaseModel):
+    nome: Optional[str] = None
+    cinema_id: Optional[int] = None  # Permite atualizar para outro cinema, se necessário
 
 class Sala(SalaBase):
     id: int
