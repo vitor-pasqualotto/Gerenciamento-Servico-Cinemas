@@ -76,10 +76,9 @@ class UsuarioUpdate(BaseModel):
     nome: Optional[str] = None
     email: Optional[str] = None
     senha: Optional[str] = None  # Se for atualizado, será hasheada
-    tipo_usuario: Optional[str] = None
+    tipo_usuario: Optional[str] = None  # Admin, Gerente, Representante, Encarregado
     empresa_id: Optional[int] = None
     cinema_id: Optional[int] = None
-
 
 class Usuario(UsuarioBase):
     id: int

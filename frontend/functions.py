@@ -53,49 +53,61 @@ def get_current_user():
 
 # ============ CALLBACKS ============
 
-def fetch_empresas():
+def callback_empresas():
     """Recupera todas as empresas e retorna um dicionário {id: nome}."""
     token = st.session_state.get("token")
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-    response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-    if response.status_code == 200:
-        empresas = response.json()
-        return {empresa['id']: empresa['nome'] for empresa in empresas}
-    else:
-        return {}
+    if token:
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
 
-def fetch_cinemas(empresa_id):
-    """Recupera todos os cinemas de uma empresa específica."""
-    token = st.session_state.get("token")
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-    response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
-    if response.status_code == 200:
-        cinemas = response.json()
-        st.write("Resposta da API cinemas:", cinemas)  # Debug
-        return {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa_id}
-    else:
-        st.error("Erro ao buscar cinemas!")
-        return {}
-
-def fetch_salas(cinema_id):
-    """Recupera todas as salas de um cinema específico."""
-    token = st.session_state.get("token")
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-    response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
-    if response.status_code == 200:
-        salas = response.json()
-        return {sala['id']: sala['nome'] for sala in salas if sala['cinema_id'] == cinema_id}
-    else:
-        return {}
-
-def callback_empresas():
-    st.session_state.empresas = fetch_empresas()
+        if response.status_code == 200:
+            empresas = response.json()
+            st.session_state.empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
 
 def callback_cinemas():
-    st.session_state.cinemas = fetch_cinemas(st.session_state.empresa_id) 
+    """Recupera todos os cinemas de uma empresa específica."""
+    token = st.session_state.get("token")
+    if token:
+        empresa_id = st.session_state.empresa_id
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
+        if response.status_code == 200:
+            cinemas = response.json()
+            st.write("Resposta da API cinemas:", cinemas)  # Debug
+            st.session_state.cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa_id} 
 
 def callback_salas():
-    st.session_state.salas = fetch_salas(st.session_state.cinema_id)
+    """Recupera todas as salas de um cinema específico."""
+    token = st.session_state.get("token")
+    if token:
+        cinema_id = st.session_state.cinema_id
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
+        if response.status_code == 200:
+            salas = response.json()
+            st.session_state.salas = {sala['id']: sala['nome'] for sala in salas if sala['cinema_id'] == cinema_id}
+
+def callback_usuarios():
+    """Recupera todos os usuarios de um tipo específico."""
+    token = st.session_state.get("token")
+    if token:
+        tipo_usuario = st.session_state.tipo_usuario
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = requests.get(f"{API_BASE_URL}/usuarios/", headers=headers)
+        if response.status_code == 200:
+            usuarios = response.json()
+            st.session_state.usuarios = {usuario['id']: usuario['nome'] for usuario in usuarios if usuario['tipo_usuario'] == tipo_usuario}
+
+def callback_usuario_especifico():
+    """Recupera um usuario específico."""
+    token = st.session_state.get("token")
+    if token:
+        usuario_id = st.session_state.usuario_id
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        response = requests.get(f"{API_BASE_URL}/usuarios/", headers=headers)
+        if response.status_code == 200:
+            usuarios = response.json()
+            st.session_state.usuario_especifico = [usuario for usuario in usuarios if usuario["id"] == usuario_id]
 
 # ============ AÇÕES DISPONÍVEIS ============
 
@@ -240,106 +252,13 @@ def create_usuario():
         response = requests.post(f"{API_BASE_URL}/usuarios/", json=payload, headers=headers)
         st.success("Usuário registrado com sucesso!") if response.status_code == 200 else st.error("Erro ao registrar o usuário.")
 
-
-
-    """ 
-    token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-        if response.status_code == 200:
-            empresas = response.json()
-            dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-            options_empresa = []
-            for id, nome in dict_empresas.items():
-                options_empresa.append(nome)
-
-        # Recuperando todas os cinemas da empresa selecionada
-        options_tipo = ["Gerente", "Representante", "Encarregado"]
-
-        st.header("Registrar Novo Usuário")
-        nome_usuario = st.text_input("Nome do Usuário")
-        email = st.text_input("Email Usuário")
-        senha = st.text_input("Senha Usuário", type='password')
-        tipo_usuario = st.selectbox("Tipo de Usuário", options=options_tipo)
-
-        if tipo_usuario == "Encarregado":
-            empresa = None
-            cinema = None
-
-        elif tipo_usuario == "Representante":
-            empresa = st.selectbox("Empresa", options=options_empresa)
-
-            if empresa:
-                # Setando ID da empresa selecionada
-                for id, nome in dict_empresas.items():
-                    if nome == empresa:
-                        empresa = id
-                        
-            cinema = None
-
-        else:
-            empresa = st.selectbox("Empresa", options=options_empresa)
-
-            if empresa:
-                # Setando ID da empresa selecionada
-                for id, nome in dict_empresas.items():
-                    if nome == empresa:
-                        empresa = id
-                        
-                # Recuperando todas os cinemas da empresa selecionada
-                response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
-                if response.status_code == 200:
-                    cinemas = response.json()
-                    dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa}
-                    options_cinema = []
-                    for id, nome in dict_cinemas.items():
-                        options_cinema.append(nome) 
-
-                cinema = st.selectbox("Cinema", options=options_cinema)
-
-            if cinema:
-                # Setando ID da empresa selecionada
-                for id, nome in dict_cinemas.items():
-                    if nome == cinema:
-                        cinema = id
-
-        if st.button("Registrar"):
-            
-            payload = {
-                "nome": nome_usuario,
-                "email": email,
-                "senha": senha,
-                "tipo_usuario": tipo_usuario,
-                "empresa_id": empresa,
-                "cinema_id": cinema
-            }
-
-            response = requests.post(f"{API_BASE_URL}/usuarios/", json=payload, headers=headers)
-            if response.status_code == 200:
-                st.success("Usuário registrado com sucesso!")
-
-            else:
-                st.error("Erro ao registrar o usuário.")
-    
-    else:
-        st.error("Usuário não autenticado.")
-"""
 def create_empresa():
-    token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
-
     st.header("Registrar Nova Empresa")
-
     nome_empresa = st.text_input("Nome da Empresa")
     cnpj = st.text_input("CNPJ da Empresa", placeholder="XX.XXX.XXX/0001-XX")
     contato = st.text_input("Email da Empresa", placeholder="exemplo@dominio.com")
 
     if nome_empresa and cnpj and contato:
-
         if st.button("Registrar"):
             token = st.session_state.get("token")
             headers = {"Authorization": f"Bearer {token}"}
@@ -357,29 +276,15 @@ def create_empresa():
                 st.error("Erro ao registrar a empresa.")
 
 def create_cinema():
-    token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
-        # Recuperando todas as empresas para adicionar no dropdown
-        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-        if response.status_code == 200:
-            empresas = response.json()
-            dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-            options_empresa = []
-            for id, nome in dict_empresas.items():
-                options_empresa.append(nome)
-
         st.header("Registrar Novo Cinema")
-
-        nome_cinema = st.text_input("Nome do Cinema")
-        endereco = st.text_input("Endereço do Cinema")
-        empresa = st.selectbox("Selecione a Empresa", options=options_empresa)
+        empresas = {0: "Selecionar"}
+        empresas.update(st.session_state.empresas)
+        empresa = st.selectbox("Selecione a Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], on_change=callback_cinemas, index=0)
 
         if empresa:
-            # Setando ID da empresa selecionada
-            for id, nome in dict_empresas.items():
-                if nome == empresa:
-                    empresa = id
+
+            nome_cinema = st.text_input("Nome do Cinema")
+            endereco = st.text_input("Endereço do Cinema")
 
             if nome_cinema and endereco and empresa:
 
@@ -400,45 +305,21 @@ def create_cinema():
                         st.error("Erro ao registrar o cinema.")
 
 def create_sala():
-    token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-        if response.status_code == 200:
-            empresas = response.json()
-            dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-            options_empresa = []
-            for id, nome in dict_empresas.items():
-                options_empresa.append(nome)
-
-        st.header("Registrar Novo Cinema")
-
-        nome_sala = st.text_input("Nome da Sala")
-        empresa = st.selectbox("Empresa", options=options_empresa)
-
+        st.header("Registrar Nova Sala")
+        empresas = {0: "Selecionar"}
+        empresas.update(st.session_state.empresas)
+        empresa = st.selectbox("Selecione a Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], on_change=callback_cinemas, index=0)
+        
         if empresa:
-            # Setando ID da empresa selecionada
-            for id, nome in dict_empresas.items():
-                if nome == empresa:
-                    empresa = id
-
-            # Recuperando todas as empresas para adicionar no dropdown
-            response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
-            if response.status_code == 200:
-                cinemas = response.json()
-                dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa}
-                options_cinema = []
-                for id, nome in dict_cinemas.items():
-                    options_cinema.append(nome)
-
-            cinema = st.selectbox("Cinema", options=options_cinema)
-
+            cinemas = {0: "Selecionar"}
+            cinemas.update(st.session_state.cinemas)
+            cinema = st.selectbox("Cinema", options=list(cinemas.keys()), key="cinema_id", format_func=lambda x: cinemas[x], on_change=callback_salas, index=0)
             if cinema:
-                # Setando ID da cinema selecionada
-                for id, nome in dict_cinemas.items():
-                    if nome == cinema:
-                        cinema = id
+                st.write("Salas Existentes")
+                for n in range(len(st.session_state.salas)):
+                    st.write(st.session_state.salas[n+1])
+
+                nome_sala = st.text_input("Nome da Sala")
 
                 if nome_sala and empresa and cinema:
 
@@ -474,66 +355,29 @@ def save_uploaded_file(uploaded_file, folder="static/uploads/"):
 
 def create_servico():
     token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {token}"}
 
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-        if response.status_code == 200:
-            empresas = response.json()
-            dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-            options_empresa = []
-            for id, nome in dict_empresas.items():
-                options_empresa.append(nome)
-    
     st.header("Registrar Novo Serviço")
-
-    encarregado_id = requests.get(f"{API_BASE_URL}/usuarios/me", headers=headers).json()["id"]
-    tipo_servico = st.selectbox("Tipo de Serviço", options=["bla", "bla bla"])
-    empresa = st.selectbox("Empresa", options=options_empresa)
-
+    empresas = {0: "Selecionar"}
+    empresas.update(st.session_state.empresas)
+    empresa = st.selectbox("Selecione a Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], on_change=callback_cinemas, index=0)
+    
     if empresa:
-        
-        # Setando ID da empresa selecionada
-        for id, nome in dict_empresas.items():
-            if nome == empresa:
-                empresa = id
-
-        # Recuperando todas os cinemas da empresa selecionada
-        response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
-        if response.status_code == 200:
-            cinemas = response.json()
-            dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas if cinema['empresa_id'] == empresa}
-            options_cinema = []
-            for id, nome in dict_cinemas.items():
-                options_cinema.append(nome) 
-
-        cinema = st.selectbox("Cinema", options=options_cinema)
-
+        cinemas = {0: "Selecionar"}
+        cinemas.update(st.session_state.cinemas)
+        cinema = st.selectbox("Cinema", options=list(cinemas.keys()), key="cinema_id", format_func=lambda x: cinemas[x], on_change=callback_salas, index=0)
+        st.write(cinemas)
         if cinema:
-            # Setando ID da empresa selecionada
-            for id, nome in dict_cinemas.items():
-                if nome == cinema:
-                    cinema = id
+            salas = {0: "Selecionar"}
+            salas.update(st.session_state.salas)
+            sala = st.selectbox("Salas", options=list(salas.keys()), key="sala_id", format_func=lambda x: salas[x], index=0)
 
-            response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
-            if response.status_code == 200:
-                salas = response.json()
-                dict_salas = {sala['id']: sala['nome'] for sala in salas if sala['cinema_id'] == cinema}
-                options_sala = []
-                for id, nome in dict_salas.items():
-                    options_sala.append(nome)
-
-            sala = st.selectbox("Sala", options=options_sala)
-            
             if sala:
-                # Setando ID da cinema selecionada
-                for id, nome in dict_salas.items():
-                    if nome == sala:
-                        sala = id
 
+                encarregado_id = requests.get(f"{API_BASE_URL}/usuarios/me", headers=headers).json()["id"]
+                tipo_servico = st.selectbox("Tipo de Serviço", options=["Limpeza de Carpete", "Limpeza de Tela", "Limpeza de Cortinas"])
                 uploaded_files = st.file_uploader("Envie as Fotos", accept_multiple_files=True)
-                
+
                 if uploaded_files:
                     st.write(f"Foram carregadas {len(uploaded_files)} imagens.")
 
@@ -563,129 +407,52 @@ def create_servico():
                             response = requests.post(f"{API_BASE_URL}/servicos/", json=payload, headers=headers)
                             if response.status_code == 200:
                                 st.success("Serviço registrado com sucesso!")
+
                             else:
                                 st.error("Erro ao registrar o serviço.")
 
 # UPDATE
 def update_usuario():
-    token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
-
-        # Recuperando todos os tipos de usuários para adicionar ao dropdown
-        options_tipo = ["Gerente", "Representante", "Encarregado"]
-
-        st.header("Editar Usuário")
-        tipo_usuario = st.selectbox("Selecione o Tipo de Usuário", options=options_tipo)
-
-        if tipo_usuario == "Encarregado":
-
-            # Recuperando todos os usuários para adicionar do dropdown
-            response = requests.get(f"{API_BASE_URL}/usuarios/", headers=headers)
-            if response.status_code == 200:
-                usuarios = response.json()
-                usuarios_filtrados = [usuario for usuario in usuarios if usuario["tipo_usuario"] == "Encarregado"]
-                dict_usuarios = {usuario['id']: usuario['nome'] for usuario in usuarios_filtrados}
-                options_usuario = []
-                for id, nome in dict_usuarios.items():
-                    options_usuario.append(nome)
-
-            usuario_id = st.selectbox("Selecione o Usuário", options=options_usuario)
-            
-            # Setando ID do usuário selecionado
-            for id, nome in dict_usuarios.items():
-                if nome == usuario_id:
-                    usuario_id = id
-
-            if usuario_id:
-                nome_update = st.text_input("Digite o Nome Para Alteração")
-                email_update = st.text_input("Digite o Email Para Alteração")
-                senha_update = st.text_input("Digite a Senha Para Alteração", type="password")
-
-        elif tipo_usuario == "Representante":
-
-            # Recuperando todos os usuários para adicionar do dropdown
-            response = requests.get(f"{API_BASE_URL}/usuarios/", headers=headers)
-            if response.status_code == 200:
-                usuarios = response.json()
-                usuarios_filtrados = [usuario for usuario in usuarios if usuario["tipo_usuario"] == "Representante"]
-                dict_usuarios = {usuario['id']: usuario['nome'] for usuario in usuarios_filtrados}
-                options_usuario = []
-                for id, nome in dict_usuarios.items():
-                    options_usuario.append(nome)
-
-            usuario_id = st.selectbox("Selecione o Usuário", options=options_usuario)
-
-            # Setando ID do usuário selecionado
-            for id, nome in dict_usuarios.items():
-                if nome == usuario_id:
-                    usuario_id = id
-
-            if usuario_id:
-                nome_update = st.text_input("Digite o Nome Para Alteração")
-                email_update = st.text_input("Digite o Email Para Alteração")
-                senha_update = st.text_input("Digite a Senha Para Alteração", type="password")
-            
-
-        else:
-
-            # Recuperando todos os usuários para adicionar do dropdown
-            response = requests.get(f"{API_BASE_URL}/usuarios/", headers=headers)
-            if response.status_code == 200:
-                usuarios = response.json()
-                usuarios_filtrados = [usuario for usuario in usuarios if usuario["tipo_usuario"] == "Gerente"]
-                dict_usuarios = {usuario['id']: usuario['nome'] for usuario in usuarios_filtrados}
-                options_usuario = []
-                for id, nome in dict_usuarios.items():
-                    options_usuario.append(nome)
-
-            usuario_id = st.selectbox("Selecione o Usuário", options=options_usuario)
-
-            # Setando ID do usuário selecionado
-            for id, nome in dict_usuarios.items():
-                if nome == usuario_id:
-                    usuario_id = id
-
-            if usuario_id:
-                nome_update = st.text_input("Digite o Nome Para Alteração")
-                email_update = st.text_input("Digite o Email Para Alteração")
-                senha_update = st.text_input("Digite a Senha Para Alteração", type="password")
-
-                # Recuperando todas as empresas para adicionar do dropdown
-                response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-                if response.status_code == 200:
-                    empresas = response.json()
-                    dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-                    options_empresas = []
-                    for id, nome in dict_empresas.items():
-                        options_empresas.append(nome)
-
-                empresa = st.selectbox("Escolha a Empresa Para Alteração", options=options_empresas)
-
-                # Setando ID do usuário selecionado
-                for id, nome in dict_empresas.items():
-                    if nome == empresa:
-                        empresa = id
-
-        if st.button("Atualizar"):
-            
-            payload = {
-                "nome": nome_update,
-                "email": email_update,
-                "senha": senha_update,
-                "tipo_usuario": tipo_usuario,
-                "empresa_id": empresa
-            }
-
-            response = requests.put(f"{API_BASE_URL}/usuarios/{usuario_id}", json=payload, headers=headers)
-            if response.status_code == 200:
-                st.success("Usuário Atualizado com sucesso!")
-
-            else:
-                st.error("Erro ao Atualizar o usuário.")
+    st.header("Editar Usuário")
     
-    else:
-        st.error("Usuário não autenticado.")
+    # Recuperando todos os tipos de usuários para adicionar ao dropdown
+    options_tipo = ["Selecionar", "Gerente", "Representante", "Encarregado"]
+    tipo_usuario = st.selectbox("Selecione o Tipo de Usuário", options=options_tipo, key="tipo_usuario", on_change=callback_usuarios)
+
+    if tipo_usuario and tipo_usuario != "Selecionar":
+        usuarios = {0: "Selecionar"}
+        usuarios.update(st.session_state.usuarios)
+        usuario = st.selectbox("Selecione o Usuário", options=list(usuarios.keys()), key="usuario_id", format_func=lambda x: usuarios[x], on_change=callback_usuario_especifico, index=0)
+
+        if usuario and usuario != 0:
+            st.write(f"Nome: {st.session_state.usuario_especifico[0]["nome"]}")
+            st.write(f"Email: {st.session_state.usuario_especifico[0]["email"]}")
+            
+            nome_update = st.text_input("Digite o Nome Para Alteração")
+            email_update = st.text_input("Digite o Email Para Alteração")
+            senha_update = st.text_input("Digite a Senha Para Alteração", type="password")
+
+            empresa = st.session_state.usuario_especifico[0]["empresa_id"]
+            cinema = st.session_state.usuario_especifico[0]["cinema_id"]
+
+            if st.button("Atualizar"):
+                token = st.session_state.get("token")
+                headers = {"Authorization": f"Bearer {token}"}
+                payload = {
+                    "nome": nome_update,
+                    "email": email_update,
+                    "senha": senha_update,
+                    "tipo_usuario": tipo_usuario,
+                    "empresa_id": empresa,
+                    "cinema_id": cinema
+                }
+
+                response = requests.put(f"{API_BASE_URL}/usuarios/{usuario}", json=payload, headers=headers)
+                if response.status_code == 200:
+                    st.success("Usuário Atualizado com sucesso!")
+
+                else:
+                    st.error("Erro ao Atualizar o usuário.")
 
 
 def update_empresa():
@@ -693,30 +460,17 @@ def update_empresa():
     if token:
         headers = {"Authorization": f"Bearer {token}"}
 
-        st.header("Editar Empresa")
-
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-        if response.status_code == 200:
-            empresas = response.json()
-            dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-            options_empresas = []
-            for id, nome in dict_empresas.items():
-                options_empresas.append(nome)
-
-        empresa_id = st.selectbox("Escolha a Empresa Para Alteração", options=options_empresas)
-
-        # Setando ID do usuário selecionado
-        for id, nome in dict_empresas.items():
-            if nome == empresa_id:
-                empresa_id = id
-
-        if empresa_id:
+        st.header("Registrar Novo Serviço")
+        empresas = {0: "Selecionar"}
+        empresas.update(st.session_state.empresas)
+        empresa = st.selectbox("Selecione a Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], index=0)
+    
+        if empresa:
             nome = st.text_input("Digite o Nome da Empresa")
             cnpj = st.text_input("CNPJ da Empresa", placeholder="XX.XXX.XXX/0001-XX")
             contato = st.text_input("Email da Empresa", placeholder="exemplo@dominio.com")
 
-        if empresa_id and cnpj and contato:
+        if empresa and nome and cnpj and contato:
 
             if st.button("Registrar"):
                 token = st.session_state.get("token")
@@ -726,7 +480,7 @@ def update_empresa():
                     "cnpj": cnpj,
                     "contato": contato
                 }
-                response = requests.put(f"{API_BASE_URL}/empresas/{empresa_id}", json=payload, headers=headers)
+                response = requests.put(f"{API_BASE_URL}/empresas/{empresa}", json=payload, headers=headers)
 
                 if response.status_code == 200:
                     st.success("Empresa Atualizada com sucesso!")
@@ -741,49 +495,19 @@ def update_cinema():
     if token:
         headers = {"Authorization": f"Bearer {token}"}
 
-        st.header("Editar Cinema")
+        st.header("Atuaizar Cinema")
+        empresas = {0: "Selecionar"}
+        empresas.update(st.session_state.empresas)
+        empresa = st.selectbox("Selecione a Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], on_change=callback_cinemas, index=0)
+        
+        if empresa:
+            cinemas = {0: "Selecionar"}
+            cinemas.update(st.session_state.cinemas)
+            cinema = st.selectbox("Cinema", options=list(cinemas.keys()), key="cinema_id", format_func=lambda x: cinemas[x], on_change=callback_salas, index=0)
 
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-        if response.status_code == 200:
-            empresas = response.json()
-            dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-            options_empresas = []
-            for id, nome in dict_empresas.items():
-                options_empresas.append(nome)
-
-        empresa_id = st.selectbox("Escolha a Empresa Para Alteração", options=options_empresas)
-
-        # Setando ID do usuário selecionado
-        for id, nome in dict_empresas.items():
-            if nome == empresa_id:
-                empresa_id = id
-
-        if empresa_id:
-            # Recuperando todas as empresas para adicionar do dropdown
-            response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
-
-            if response.status_code == 200:
-                cinemas = response.json()
-                cinemas_filtrados = [cinema for cinema in cinemas if cinema["empresa_id"] == empresa_id]
-                dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas_filtrados}
-                options_cinemas = []
-                for id, nome in dict_cinemas.items():
-                    options_cinemas.append(nome)
-
-            cinema_id = st.selectbox("Escolha o Cinema", options=options_cinemas)
-
-            # Setando ID do usuário selecionado
-            for id, nome in dict_cinemas.items():
-                if nome == cinema_id:
-                    cinema_id = id
-            
-            if cinema_id:
-                nome = st.text_input("Digite o Nome do Cinema")
-                endereco = st.text_input("Digite o Endereço do Cinema")
-
-
-            if empresa_id and cinema_id and nome and endereco:
+            if empresa and cinema:
+                nome = st.text_input("Digite o Nome Para Alteração")
+                endereco = st.text_input("Digite o Endereço Para Alteração")
 
                 if st.button("Registrar"):
                     token = st.session_state.get("token")
@@ -791,9 +515,9 @@ def update_cinema():
                     payload = {
                         "nome": nome,
                         "endereco": endereco,
-                        "empresa_id": empresa_id
+                        "empresa_id": empresa
                     }
-                    response = requests.put(f"{API_BASE_URL}/cinemas/{cinema_id}", json=payload, headers=headers)
+                    response = requests.put(f"{API_BASE_URL}/cinemas/{cinema}", json=payload, headers=headers)
 
                     if response.status_code == 200:
                         st.success("Empresa Atualizada com sucesso!")
