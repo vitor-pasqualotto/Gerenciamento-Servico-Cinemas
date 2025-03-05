@@ -25,8 +25,9 @@ def main():
                 st.session_state.usuarios = {}
             if "usuario_especifico" not in st.session_state:
                 st.session_state.usuario_especifico = {}
+            if "servicos" not in st.session_state:
+                st.session_state.servicos = {}
 
-            st.write(user.get("nome"))
             tipo_usuario = user.get("tipo_usuario")
 
             menus = {

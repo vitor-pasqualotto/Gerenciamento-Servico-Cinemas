@@ -1,6 +1,4 @@
 from PIL import Image
-#from backend import auth, models
-from fastapi import Depends
 import streamlit as st
 import requests
 import os
@@ -37,7 +35,6 @@ def login():
         else:
             st.sidebar.error("Erro no login. Verifique suas credenciais.")
 
-@st.cache_data
 def get_current_user():
     token = st.session_state.get("token")
     if not token:
@@ -45,7 +42,7 @@ def get_current_user():
     
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(f"{API_BASE_URL}/usuarios/me", headers=headers)
-
+    
     if response.status_code == 200:
         return response.json()
     
@@ -108,6 +105,39 @@ def callback_usuario_especifico():
         if response.status_code == 200:
             usuarios = response.json()
             st.session_state.usuario_especifico = [usuario for usuario in usuarios if usuario["id"] == usuario_id]
+
+def callback_servicos():
+    """Atualiza a lista de serviços com base no tipo de usuário logado."""
+    token = st.session_state.get("token")
+    current_user = st.session_state.get("current_user", {})
+
+    if token and current_user:
+        headers = {"Authorization": f"Bearer {token}"}
+        response = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
+
+        if response.status_code == 200:
+            todos_servicos = response.json()
+
+            # Filtrando serviços de acordo com o tipo de usuário
+            if current_user["tipo_usuario"] == "Encarregado":
+                servicos_filtrados = [
+                    servico for servico in todos_servicos
+                    if servico["status"] == "Recusado" and servico["encarregado_id"] == current_user["id"]
+                ]
+            elif current_user["tipo_usuario"] == "Gerente":
+                servicos_filtrados = [
+                    servico for servico in todos_servicos
+                    if servico["status"] == "Pendente" and servico["cinema_id"] == current_user["cinema_id"]
+                ]
+            elif current_user["tipo_usuario"] == "Admin":
+                servicos_filtrados = [
+                    servico for servico in todos_servicos
+                    if servico["status"] == "Aprovado"
+                ]
+            else:
+                servicos_filtrados = []
+
+            st.session_state["servicos"] = servicos_filtrados
 
 # ============ AÇÕES DISPONÍVEIS ============
 
@@ -391,7 +421,7 @@ def create_servico():
 
                     observacoes = st.text_area("Observações")
 
-                    if encarregado_id and tipo_servico and empresa and sala and fotos_urls and observacoes:
+                    if observacoes:
 
                         if st.button("Registrar"):
                             token = st.session_state.get("token")
@@ -530,454 +560,146 @@ def update_cinema():
 def update_sala():
     token = st.session_state.get("token")
     if token:
-        headers = {"Authorization": f"Bearer {token}"}
-
         st.header("Editar Sala")
+        empresas = {0: "Selecionar"}
+        empresas.update(st.session_state.empresas)
+        empresa = st.selectbox("Selecione a Empresa", options=list(empresas.keys()), key="empresa_id", format_func=lambda x: empresas[x], on_change=callback_cinemas, index=0)
+        
+        if empresa:
+            cinemas = {0: "Selecionar"}
+            cinemas.update(st.session_state.cinemas)
+            cinema = st.selectbox("Cinema", options=list(cinemas.keys()), key="cinema_id", format_func=lambda x: cinemas[x], on_change=callback_salas, index=0)
 
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
+            if cinema:
+                salas = {0: "Selecionar"}
+                salas.update(st.session_state.salas)
+                sala = st.selectbox("Salas", options=list(salas.keys()), key="sala_id", format_func=lambda x: salas[x], index=0)
 
-        if response.status_code == 200:
-            cinemas = response.json()
-            dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas}
-            options_cinemas = []
-            for id, nome in dict_cinemas.items():
-                options_cinemas.append(nome)
+                if sala:
+                    nome = st.text_input("Digite o nome para alteração")
 
-        cinema_id = st.selectbox("Escolha o Cinema", options=options_cinemas)
+                    if nome:
 
-        # Setando ID do usuário selecionado
-        for id, nome in dict_cinemas.items():
-            if nome == cinema_id:
-                cinema_id = id
+                        if st.button("Registrar"):
+                            token = st.session_state.get("token")
+                            headers = {"Authorization": f"Bearer {token}"}
+                            payload = {
+                                "nome": nome,
+                                "ciniema_id": cinema
+                            }
+                            response = requests.put(f"{API_BASE_URL}/salas/{sala}", json=payload, headers=headers)
 
-        # Recuperando todas as empresas para adicionar do dropdown
-        response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
-        if response.status_code == 200:
-            salas = response.json()
-            salas_filtradas = [sala for sala in salas if sala["cinema_id"] == cinema_id]
-            dict_salas = {sala['id']: sala['nome'] for sala in salas_filtradas}
-            options_salas = []
-            for id, nome in dict_salas.items():
-                options_salas.append(nome)
+                            if response.status_code == 200:
+                                st.success("Sala Atualizada com sucesso!")
 
-        sala_id = st.selectbox("Escolha a Empresa Para Alteração", options=options_salas)
-
-        # Setando ID do usuário selecionado
-        for id, nome in dict_salas.items():
-            if nome == sala_id:
-                sala_id = id
-
-        if sala_id:
-            nome = st.text_input("Digite o Nome da Sala")
-
-        if cinema_id and sala_id and nome:
-
-            if st.button("Registrar"):
-                token = st.session_state.get("token")
-                headers = {"Authorization": f"Bearer {token}"}
-                payload = {
-                    "nome": nome,
-                    "ciniema_id": cinema_id
-                }
-                response = requests.put(f"{API_BASE_URL}/salas/{sala_id}", json=payload, headers=headers)
-
-                if response.status_code == 200:
-                    st.success("Sala Atualizada com sucesso!")
-
-                else:
-                    st.error("Erro ao Atualizar a Sala.")
+                            else:
+                                st.error("Erro ao Atualizar a Sala.")
     else:
         st.error("Usuário não autenticado.")
 
 def update_servico():
-    token = st.session_state.get("token")
-    if token:
-        headers = {"Authorization": f"Bearer {token}"}
+    """Interface para atualização de serviço baseado na permissão do usuário."""
+    st.header("Atualizar Serviço")
 
-        st.header("Editar Serviço")
+    # Pegando dados do usuário logado
+    current_user = st.session_state.get("current_user", {})
+    tipo_usuario = current_user.get("tipo_usuario")
 
-        # Recupera o Usuário atual
-        current_user = get_current_user()
+    # Atualiza a lista de serviços se necessário
+    if "servicos" not in st.session_state:
+        callback_servicos()
 
-        # Identifica o Tipo de Usuário
-        tipo_usuario = current_user.get("tipo_usuario")
-        id_usuario = current_user.get("id")
+    # Exibir serviços em forma de botões clicáveis
+    servicos = st.session_state.get("servicos", [])
+    if not servicos:
+        st.warning("Nenhum serviço disponível para atualização.")
+        return
 
-        # Verificação do Tipo Usuário
+    st.subheader("📋 Selecione um serviço para editar:")
+    
+    for servico in servicos:
+        if st.button(f"📌 {servico['tipo_servico']} - {servico['status']}"):
+            st.session_state.servico_selecionado = servico
+
+    # Exibir detalhes do serviço selecionado
+    if "servico_selecionado" in st.session_state:
+        servico = st.session_state.servico_selecionado
+        st.subheader(f"📝 Editando Serviço: {servico['tipo_servico']}")
+        st.write(f"**Observações:** {servico['observacoes'] or 'Nenhuma observação registrada'}")
+
+        # Buscar imagens associadas ao serviço
+        response_fotos = requests.get(f"{API_BASE_URL}/fotos_servico/{servico['id']}", headers={"Authorization": f"Bearer {st.session_state.get('token')}"})
+        fotos_urls = response_fotos.json() if response_fotos.status_code == 200 else []
+
+        # Exibir imagens do serviço
+        st.subheader("📷 Fotos do Serviço:")
+        for foto in fotos_urls:
+            image = Image.open(f"../{foto['url_foto']}")
+            st.image(image, caption="Imagem do Serviço", use_column_width=True)
+
+        # Upload de novas imagens (Apenas para Encarregados)
+        novas_fotos_urls = []
         if tipo_usuario == "Encarregado":
+            uploaded_files = st.file_uploader("Envie novas imagens (substituirá as antigas)", accept_multiple_files=True)
 
-            response = requests.get(f"{API_BASE_URL}/cinemas", headers=headers)
+            if uploaded_files:
+                # Removendo imagens antigas
+                for foto in fotos_urls:
+                    old_path = f"../{foto['url_foto']}"
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
 
-            # Recuperando Todos os Cinemas Para Adicionar ao Dropdown
-            if response.status_code == 200:
-                cinemas = response.json()
-                dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas}
-                options_cinemas = []
-                for id, nome in dict_cinemas.items():
-                    options_cinemas.append(nome)
-                
-                cinema_id = st.selectbox("Escolha o Serviço Para Alteração", options=options_cinemas)
+                # Salvando novas imagens
+                for uploaded_file in uploaded_files:
+                    file_path = f"static/uploads/{uploaded_file.name}"
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
 
-                # Setando ID do cinema selecionado
-                for id, nome in dict_cinemas.items():
-                    if nome == cinema_id:
-                        cinema_id = id
+                    novas_fotos_urls.append(file_path)
 
-                if cinema_id:
+        # Novas Observações
+        observacoes = st.text_area("Escreva as Observações")
 
-                    # Recuperando Todas as Salas Para Adicionar ao Dropdown
-                    response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
-                    if response.status_code == 200:
-                        salas = response.json()
-                        salas_filtradas = [sala for sala in salas if sala["cinema_id"] == cinema_id]
-                        dict_salas = {sala['id']: sala['nome'] for sala in salas_filtradas}
-                        options_salas = []
-                        for id, nome in dict_salas.items():
-                            options_salas.append(nome)
-
-                    sala_id = st.selectbox("Escolha a Empresa Para Alteração", options=options_salas)
-
-                    # Setando ID do usuário selecionado
-                    for id, nome in dict_salas.items():
-                        if nome == sala_id:
-                            sala_id = id
-
-                    if sala_id:
-                        # Recuperando todos os serviços RECUSADOS para a sala selecionada
-                        response = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
-                        
-                        if response.status_code == 200:
-                            servicos = response.json()
-
-                            # Filtrar apenas serviços com status "Recusado" e da sala selecionada
-                            servicos_filtrados = [servico for servico in servicos if servico["sala_id"] == sala_id and servico["status"] == "Recusado" and servico["encarregado_id"] == id_usuario]
-
-                            # Criando um dicionário com ID e tipo do serviço
-                            dict_servicos = {servico["id"]: servico["tipo_servico"] for servico in servicos_filtrados}
-                            options_servicos = []
-                            for id, nome in dict_servicos.items():
-                                options_servicos.append(nome)
-
-                        servico_id = st.selectbox("Escolha o Serviço Para Alterar", options=options_servicos)
-
-                        # Setando ID do usuário selecionado
-                        for id, nome in dict_servicos.items():
-                            if nome == servico_id:
-                                servico_id = id
-
-                        if servico_id:
-                            uploaded_files = st.file_uploader("Envie as Fotos", accept_multiple_files=True)
-                    
-                            if uploaded_files:
-                                st.write(f"Foram carregadas {len(uploaded_files)} imagens.")
-
-                                fotos_urls = []
-
-                                for uploaded_file in uploaded_files:
-                                    file_path = save_uploaded_file(uploaded_file)
-                                    image = Image.open(file_path)
-                                    st.image(image, caption=uploaded_file.name, use_column_width=True)
-                                    fotos_urls.append(file_path)
-
-                                observacoes = st.text_area("Observacoes")
-
-                                if cinema_id and sala_id and servico_id and uploaded_files and observacoes:
-
-                                    if st.button("Registrar"):
-                                        token = st.session_state.get("token")
-                                        headers = {"Authorization": f"Bearer {token}"}
-                                        payload = {
-                                            "status": "Pendente",
-                                            "observacoes": observacoes,
-                                            "fotos_urls": fotos_urls
-                                        }
-                                        response = requests.put(f"{API_BASE_URL}/servicos/{servico_id}", json=payload, headers=headers)
-
-                                        if response.status_code == 200:
-                                            st.success("Serviço Atualizado com sucesso!")
-
-                                        else:
-                                            st.error("Erro ao Atualizar o Serviço.")
-
+        # Seleção de Status (Dependendo do Tipo de Usuário)
+        if tipo_usuario == "Encarregado":
+            status_opcoes = ["Pendente"]
         elif tipo_usuario == "Gerente":
-                
-            # Recuperando Todas as Salas Para Adicionar ao Dropdown
-            response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
-            
+            status_opcoes = ["Aprovado", "Recusado"]
+        elif tipo_usuario == "Admin":
+            status_opcoes = ["Concluído", "Em Análise", "Recusado"]
+        else:
+            status_opcoes = []
+
+        status = st.selectbox("Status do Serviço", options=status_opcoes)
+
+        # Botão de Atualização
+        if st.button("Atualizar Serviço"):
+            payload = {"observacoes": observacoes}
+
+            # Atualizando imagens novas apenas se houverem (Encarregado)
+            if tipo_usuario == "Encarregado" and novas_fotos_urls:
+                payload["fotos_urls"] = novas_fotos_urls
+
+            # Atualizando o status se aplicável
+            if status:
+                payload["status"] = status
+
+            token = st.session_state.get("token")
+            headers = {"Authorization": f"Bearer {token}"}
+            response = requests.put(f"{API_BASE_URL}/servicos/{servico['id']}", json=payload, headers=headers)
+
             if response.status_code == 200:
-                salas = response.json()
-                dict_salas = {sala['id']: sala['nome'] for sala in salas}
-                options_salas = []
-                for id, nome in dict_salas.items():
-                    options_salas.append(nome)
-
-            sala_id = st.selectbox("Escolha a Sala Para Alteração", options=options_salas)
-
-            # Setando ID do usuário selecionado
-            for id, nome in dict_salas.items():
-                if nome == sala_id:
-                    sala_id = id
-
-            if sala_id:
-                response = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
-
-                if response.status_code == 200:
-                    servicos = response.json()
-
-                    # Aplicar o filtro localmente no Streamlit: Apenas serviços pendentes da sala escolhida
-                    servicos_filtrados = [servico for servico in servicos if servico["sala_id"] == sala_id and servico["status"] == "Pendente"]
-                   
-                    # Criar dicionário ID, Tipo Serviço → Tipo de Serviço apenas dos serviços pendentes da sala
-                    dict_servicos = {servico["id"]: servico["tipo_servico"] for servico in servicos_filtrados}
-                    options_servicos = []
-                    for id, nome in dict_servicos.items():
-                        options_servicos.append(nome)
-
-                servico_id = st.selectbox("Escolha o Serviço", options=options_servicos)
-
-                # Setando ID do usuário selecionado
-                for id, nome in dict_servicos.items():
-                    if nome == servico_id:
-                        servico_id = id
-
-                if servico_id:
-                    # Buscar Serviço Selecionado
-                    servico_selecionado = next((s for s in servicos_filtrados if s["id"] == servico_id), None)
-
-                    if servico_selecionado:
-                        st.write(f"Serviço Selecionado: {servico_selecionado["tipo_servico"]}")
-
-                        # Exibir Observações
-                        st.subheader("📌 Observações:")
-                        if servico_selecionado["observacoes"]:
-                            st.write(servico_selecionado["observacoes"])
-                        else:
-                            st.write("Sem observações registradas.")
-
-                        # Buscando fotos do serviço selecionado
-                        response = requests.get(f"{API_BASE_URL}/imagens/", headers=headers)
-                        if response.status_code == 200:
-                            fotos = response.json()
-                            dict_fotos = {foto["id"]: foto["url_foto"] for foto in fotos if foto["servico_id"] == servico_id}
-                            options_fotos = []
-                            for id, url_foto in dict_fotos.items():
-                                options_fotos.append(url_foto)
-
-                            # Exibir Fotos Associadas ao Serviço
-                            st.subheader("📷 Fotos do Serviço:")
-                            if servico_selecionado:
-                                for foto_url in options_fotos:
-                                    image = Image.open(f"../{foto_url}")
-                                    st.image(image, caption="Foto do Serviço", use_container_width=True)
-                        else:
-                            st.write("Nenhuma foto disponível para este serviço.")
-
-                        # Permitir atualização do status e observações
-                        g_observacoes = st.text_area("Escreva as Observações", placeholder="Aprovado Pelo Gerente")
-
-                        if g_observacoes:
-                            aprovar = st.button("Aprovar", type="primary")
-                            recusar = st.button("Recusar", type="secondary")
-
-                            if aprovar:
-                                token = st.session_state.get("token")
-                                headers = {"Authorization": f"Bearer {token}"}
-                                payload = {
-                                    "observacoes": g_observacoes,
-                                    "status": "Aprovado",
-                                }
-                                response = requests.put(f"{API_BASE_URL}/servicos/{servico_id}", json=payload, headers=headers)
-
-                                if response.status_code == 200:
-                                    st.success("Serviço Atualizado com sucesso!")
-
-                                else:
-                                    st.error("Erro ao Atualizar o Serviço.")
-
-                            if recusar:
-                                token = st.session_state.get("token")
-                                headers = {"Authorization": f"Bearer {token}"}
-                                payload = {                                   
-                                    "observacoes": g_observacoes,
-                                    "status": "Recusado",
-                                }
-                                response = requests.put(f"{API_BASE_URL}/servicos/{servico_id}", json=payload, headers=headers)
-
-                                if response.status_code == 200:
-                                    st.success("Serviço Atualizado com sucesso!")
-
-                                else:
-                                    st.error("Erro ao Atualizar o Serviço.")
-        
-        if tipo_usuario == "Admin":
-
-            # Recuperando todas as empresas para adicionar do dropdown
-            response = requests.get(f"{API_BASE_URL}/empresas/", headers=headers)
-            if response.status_code == 200:
-                empresas = response.json()
-                dict_empresas = {empresa['id']: empresa['nome'] for empresa in empresas}
-                options_empresas = []
-                for id, nome in dict_empresas.items():
-                    options_empresas.append(nome)
-
-            empresa_id = st.selectbox("Escolha a Empresa Para Alteração", options=options_empresas)
-
-            # Setando ID do usuário selecionado
-            for id, nome in dict_empresas.items():
-                if nome == empresa_id:
-                    empresa_id = id
-
-            if empresa_id:
-
-                # Recuperando todos os cinemas para adicionar do dropdown
-                response = requests.get(f"{API_BASE_URL}/cinemas/", headers=headers)
-
-                if response.status_code == 200:
-                    cinemas = response.json()
-                    cinemas_filtrados = [cinema for cinema in cinemas if cinema["empresa_id"] == empresa_id]
-                    dict_cinemas = {cinema['id']: cinema['nome'] for cinema in cinemas_filtrados}
-                    options_cinemas = []
-                    for id, nome in dict_cinemas.items():
-                        options_cinemas.append(nome)
-
-                cinema_id = st.selectbox("Escolha o Cinema", options=options_cinemas)
-
-                # Setando ID do usuário selecionado
-                for id, nome in dict_cinemas.items():
-                    if nome == cinema_id:
-                        cinema_id = id
-
-                if cinema_id:
-
-                    # Recuperando todas as salas para adicionar do dropdown
-                    response = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
-                    if response.status_code == 200:
-                        salas = response.json()
-                        salas_filtradas = [sala for sala in salas if sala["cinema_id"] == cinema_id]
-                        dict_salas = {sala['id']: sala['nome'] for sala in salas_filtradas}
-                        options_salas = []
-                        for id, nome in dict_salas.items():
-                            options_salas.append(nome)
-
-                    sala_id = st.selectbox("Escolha a Empresa Para Alteração", options=options_salas)
-
-                    # Setando ID do usuário selecionado
-                    for id, nome in dict_salas.items():
-                        if nome == sala_id:
-                            sala_id = id
-
-                    if sala_id:
-                        response = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
-
-                        if response.status_code == 200:
-                            servicos = response.json()
-
-                            # Aplicar o filtro localmente no Streamlit: Apenas serviços pendentes da sala escolhida
-                            servicos_filtrados = [servico for servico in servicos if servico["sala_id"] == sala_id and servico["status"] == "Aprovado"]
-                        
-                            # Criar dicionário ID, Tipo Serviço → Tipo de Serviço apenas dos serviços pendentes da sala
-                            dict_servicos = {servico["id"]: servico["tipo_servico"] for servico in servicos_filtrados}
-                            options_servicos = []
-                            for id, nome in dict_servicos.items():
-                                options_servicos.append(nome)
-
-                        servico_id = st.selectbox("Escolha o Serviço", options=options_servicos)
-
-                        # Setando ID do usuário selecionado
-                        for id, nome in dict_servicos.items():
-                            if nome == servico_id:
-                                servico_id = id
-
-                        if servico_id:
-
-                            servico_selecionado = next((s for s in servicos_filtrados if s["id"] == servico_id), None)
-
-                            # Exibir Observações
-                            if servico_selecionado:
-                                st.subheader("📌 Observações:")
-                                st.write(servico_selecionado["observacoes"])
-                            else:
-                                st.write("Serviço concluído sem obervações.")
-
-                            # Buscando fotos do serviço selecionado
-                            response = requests.get(f"{API_BASE_URL}/imagens/", headers=headers)
-                            if response.status_code == 200:
-                                fotos = response.json()
-                                dict_fotos = {foto["id"]: foto["url_foto"] for foto in fotos if foto["servico_id"] == servico_id}
-                                options_fotos = []
-                                for id, url_foto in dict_fotos.items():
-                                    options_fotos.append(url_foto)
-
-                                # Exibir Fotos Associadas ao Serviço
-                                st.subheader("📷 Fotos do Serviço:")
-                                if servico_selecionado:
-                                    for foto_url in options_fotos:
-                                        image = Image.open(f"../{foto_url}")
-                                        st.image(image, caption="Foto do Serviço", use_container_width=True)
-
-                            # Adicionar Observações
-                            adm_observacoes = st.text_area("Escreva as Observações", placeholder="Serviço Concluído")
-
-                            if adm_observacoes:
-                                concluir = st.button("Aprovar", type="primary")
-                                analise = st.button("Análise", type="secondary")
-                                recusar = st.button("Recusar", type="tertiary")
-
-                                if concluir:
-                                    token = st.session_state.get("token")
-                                    headers = {"Authorization": f"Bearer {token}"}
-                                    payload = {
-                                        "status": "Concluido",
-                                        "observacoes": adm_observacoes
-                                    }
-                                    response = requests.put(f"{API_BASE_URL}/servicos/{servico_id}", json=payload, headers=headers)
-
-                                    if response.status_code == 200:
-                                        st.success("Serviço Atualizado com sucesso!")
-
-                                    else:
-                                        st.error("Erro ao Atualizar o Serviço.")
-
-                                if recusar:
-                                    token = st.session_state.get("token")
-                                    headers = {"Authorization": f"Bearer {token}"}
-                                    payload = {                                   
-                                        "observacoes": adm_observacoes,
-                                        "status": "Recusado",
-                                    }
-                                    response = requests.put(f"{API_BASE_URL}/servicos/{servico_id}", json=payload, headers=headers)
-
-                                    if response.status_code == 200:
-                                        st.success("Serviço Atualizado com sucesso!")
-
-                                    else:
-                                        st.error("Erro ao Atualizar o Serviço.")
-                                    
-                                if analise:
-                                    token = st.session_state.get("token")
-                                    headers = {"Authorization": f"Bearer {token}"}
-                                    payload = {                                   
-                                        "observacoes": adm_observacoes,
-                                        "status": "Em Análise",
-                                    }
-                                    response = requests.put(f"{API_BASE_URL}/servicos/{servico_id}", json=payload, headers=headers)
-
-                                    if response.status_code == 200:
-                                        st.success("Serviço Atualizado com sucesso!")
-
-                                    else:
-                                        st.error("Erro ao Atualizar o Serviço.")
-
-    else:
-        st.error("Usuário não autenticado.")
+                st.success("Serviço atualizado com sucesso!")
+                callback_servicos()  # Recarregar lista de serviços
+                st.session_state.pop("servico_selecionado")  # Limpar seleção após atualizar
+            else:
+                st.error("Erro ao atualizar o serviço.")
 
 # ============ Interfaces de cada Usuário ============
 
 # Admin
 def menu_admin():
     st.title("Admin")
-    st.subheader("Aqui você pode gerenciar todo o seu negócio")
 
     if "pagina" not in st.session_state:
         st.session_state.pagina = "Dashboard"
@@ -1059,7 +781,6 @@ def menu_admin():
 
 def menu_encarregado():
     st.title("Encarregado")
-    st.subheader("Aqui você pode gerenciar seus serviços")
     st.title("Menu")
     acao = st.radio("Escolha uma página:", ["Registrar Serviço", "Atualizar Serviço", "Serviços Recusados"])
 
@@ -1074,7 +795,6 @@ def menu_encarregado():
 
 def menu_gerente():
     st.title("Gerente")
-    st.subheader("Aqui você pode gerenciar seu Cinema")
     st.title("Menu")
     acao = st.radio("Escolha uma página:", ["Atualizar Serviço", "Serviços Pendentes"])
 
@@ -1086,6 +806,5 @@ def menu_gerente():
 
 def menu_representante():
     st.title("Representante")
-    st.subheader("Aqui você pode ver os serviços concluídos do seu Cinema")
     
     show_servicos()
