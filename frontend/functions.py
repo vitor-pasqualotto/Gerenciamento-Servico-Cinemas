@@ -109,14 +109,16 @@ def callback_usuario_especifico():
 def callback_servicos():
     """Atualiza a lista de serviços com base no tipo de usuário logado."""
     token = st.session_state.get("token")
-    current_user = st.session_state.get("current_user", {})
+    current_user = get_current_user()
 
     if token and current_user:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
+        response_servicos = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
+        response_salas = requests.get(f"{API_BASE_URL}/salas", headers=headers)
 
-        if response.status_code == 200:
-            todos_servicos = response.json()
+        if response_servicos.status_code == 200 and response_salas.status_code == 200:
+            todos_servicos = response_servicos.json()
+            todas_salas = response_salas.json()
 
             # Filtrando serviços de acordo com o tipo de usuário
             if current_user["tipo_usuario"] == "Encarregado":
@@ -125,10 +127,15 @@ def callback_servicos():
                     if servico["status"] == "Recusado" and servico["encarregado_id"] == current_user["id"]
                 ]
             elif current_user["tipo_usuario"] == "Gerente":
-                servicos_filtrados = [
-                    servico for servico in todos_servicos
-                    if servico["status"] == "Pendente" and servico["cinema_id"] == current_user["cinema_id"]
-                ]
+                servicos_filtrados = []
+
+                for servico in todos_servicos:
+                    if servico["status"] == "Pendente":
+                        for sala in todas_salas:
+                            if sala["id"] == servico["sala_id"]:
+                                if sala["cinema_id"] == current_user["cinema_id"]:
+                                    servicos_filtrados.append(servico)
+
             elif current_user["tipo_usuario"] == "Admin":
                 servicos_filtrados = [
                     servico for servico in todos_servicos
@@ -137,7 +144,7 @@ def callback_servicos():
             else:
                 servicos_filtrados = []
 
-            st.session_state["servicos"] = servicos_filtrados
+            st.session_state.servicos = servicos_filtrados
 
 # ============ AÇÕES DISPONÍVEIS ============
 
@@ -602,15 +609,13 @@ def update_servico():
     st.header("Atualizar Serviço")
 
     # Pegando dados do usuário logado
-    current_user = st.session_state.get("current_user", {})
-    tipo_usuario = current_user.get("tipo_usuario")
-
-    # Atualiza a lista de serviços se necessário
-    if "servicos" not in st.session_state:
-        callback_servicos()
+    current_user = get_current_user()
+    tipo_usuario = current_user["tipo_usuario"]
+    
+    callback_servicos()
 
     # Exibir serviços em forma de botões clicáveis
-    servicos = st.session_state.get("servicos", [])
+    servicos = st.session_state["servicos"]
     if not servicos:
         st.warning("Nenhum serviço disponível para atualização.")
         return
@@ -628,14 +633,15 @@ def update_servico():
         st.write(f"**Observações:** {servico['observacoes'] or 'Nenhuma observação registrada'}")
 
         # Buscar imagens associadas ao serviço
-        response_fotos = requests.get(f"{API_BASE_URL}/fotos_servico/{servico['id']}", headers={"Authorization": f"Bearer {st.session_state.get('token')}"})
-        fotos_urls = response_fotos.json() if response_fotos.status_code == 200 else []
+        response_fotos = requests.get(f"{API_BASE_URL}/imagens", headers={"Authorization": f"Bearer {st.session_state.get('token')}"})
+        fotos = response_fotos.json() if response_fotos.status_code == 200 else []
 
         # Exibir imagens do serviço
         st.subheader("📷 Fotos do Serviço:")
-        for foto in fotos_urls:
-            image = Image.open(f"../{foto['url_foto']}")
-            st.image(image, caption="Imagem do Serviço", use_column_width=True)
+        for foto in fotos:
+            if foto["servico_id"] == servico["id"]:
+                image = Image.open(f"../{foto['url_foto']}")
+                st.image(image, caption="Imagem do Serviço", use_container_width=True)
 
         # Upload de novas imagens (Apenas para Encarregados)
         novas_fotos_urls = []
@@ -644,7 +650,7 @@ def update_servico():
 
             if uploaded_files:
                 # Removendo imagens antigas
-                for foto in fotos_urls:
+                for foto in fotos:
                     old_path = f"../{foto['url_foto']}"
                     if os.path.exists(old_path):
                         os.remove(old_path)
