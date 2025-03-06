@@ -94,8 +94,8 @@ def update_servico(
         if servico.status != "Recusado":
             HTTPException(status_code=400, detail="Status inválido para Encarregado")
 
-        if servico_update.status:
-            raise HTTPException(status_code=403, detail="Status inválido para Encarregado")
+        #if servico_update.status:
+            #raise HTTPException(status_code=403, detail="Status inválido para Encarregado")
         
         if servico_update.observacoes:
             servico.observacoes = servico_update.observacoes

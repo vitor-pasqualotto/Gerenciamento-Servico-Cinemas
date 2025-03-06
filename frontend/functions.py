@@ -377,7 +377,7 @@ def create_sala():
 
 # ========== Criação def necessário para create_serviço =============
 
-def save_uploaded_file(uploaded_file, folder="static/uploads/"):
+def save_uploaded_file(uploaded_file, folder="../static/uploads/"):
     if not os.path.exists(folder):  
         os.makedirs(folder)
 
@@ -403,7 +403,6 @@ def create_servico():
         cinemas = {0: "Selecionar"}
         cinemas.update(st.session_state.cinemas)
         cinema = st.selectbox("Cinema", options=list(cinemas.keys()), key="cinema_id", format_func=lambda x: cinemas[x], on_change=callback_salas, index=0)
-        st.write(cinemas)
         if cinema:
             salas = {0: "Selecionar"}
             salas.update(st.session_state.salas)
@@ -623,7 +622,7 @@ def update_servico():
     st.subheader("📋 Selecione um serviço para editar:")
     
     for servico in servicos:
-        if st.button(f"📌 {servico['tipo_servico']} - {servico['status']}"):
+        if st.button(f"📌 {servico['id']} - {servico['tipo_servico']} - {servico['status']}", key=f"btn_{servico['id']}"):
             st.session_state.servico_selecionado = servico
 
     # Exibir detalhes do serviço selecionado
@@ -639,57 +638,65 @@ def update_servico():
         # Exibir imagens do serviço
         st.subheader("📷 Fotos do Serviço:")
         for foto in fotos:
-            if foto["servico_id"] == servico["id"]:
-                image = Image.open(f"../{foto['url_foto']}")
+            if foto["servico_id"] == servico["id"] and os.path.exists(foto['url_foto']):
+                image = Image.open(f"{foto['url_foto']}")
                 st.image(image, caption="Imagem do Serviço", use_container_width=True)
 
         # Upload de novas imagens (Apenas para Encarregados)
-        novas_fotos_urls = []
         if tipo_usuario == "Encarregado":
             uploaded_files = st.file_uploader("Envie novas imagens (substituirá as antigas)", accept_multiple_files=True)
 
             if uploaded_files:
                 # Removendo imagens antigas
                 for foto in fotos:
-                    old_path = f"../{foto['url_foto']}"
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
+                    if foto["servico_id"] == servico["id"]:
+                        old_path = f"{foto['url_foto']}"
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
 
+                st.write(f"Foram carregadas {len(uploaded_files)} imagens.")
+
+                fotos_urls = []
+                
                 # Salvando novas imagens
                 for uploaded_file in uploaded_files:
-                    file_path = f"static/uploads/{uploaded_file.name}"
-                    with open(file_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
-
-                    novas_fotos_urls.append(file_path)
+                    file_path = save_uploaded_file(uploaded_file)
+                    image = Image.open(file_path)
+                    st.image(image, caption=uploaded_file.name, use_container_width=True)
+                    fotos_urls.append(file_path)
 
         # Novas Observações
         observacoes = st.text_area("Escreva as Observações")
 
         # Seleção de Status (Dependendo do Tipo de Usuário)
-        if tipo_usuario == "Encarregado":
-            status_opcoes = ["Pendente"]
-        elif tipo_usuario == "Gerente":
+        if tipo_usuario == "Gerente":
             status_opcoes = ["Aprovado", "Recusado"]
         elif tipo_usuario == "Admin":
             status_opcoes = ["Concluído", "Em Análise", "Recusado"]
         else:
             status_opcoes = []
 
-        status = st.selectbox("Status do Serviço", options=status_opcoes)
+        if tipo_usuario != "Encarregado":
+            status = st.selectbox("Status do Serviço", options=status_opcoes)
+
+        else:
+            status = "Pendente"
 
         # Botão de Atualização
         if st.button("Atualizar Serviço"):
             payload = {"observacoes": observacoes}
 
-            # Atualizando imagens novas apenas se houverem (Encarregado)
-            if tipo_usuario == "Encarregado" and novas_fotos_urls:
-                payload["fotos_urls"] = novas_fotos_urls
-
             # Atualizando o status se aplicável
             if status:
-                payload["status"] = status
+                #payload["status"] = status
+                payload.update({"status": status})
 
+            # Atualizando imagens novas apenas se houverem (Encarregado)
+            if tipo_usuario == "Encarregado" and fotos_urls:
+                #payload["fotos_urls"] = fotos_urls
+                payload.update({"fotos_urls": fotos_urls})
+
+            st.write(payload)
             token = st.session_state.get("token")
             headers = {"Authorization": f"Bearer {token}"}
             response = requests.put(f"{API_BASE_URL}/servicos/{servico['id']}", json=payload, headers=headers)
