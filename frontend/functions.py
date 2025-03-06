@@ -185,7 +185,7 @@ def show_empresas():
     else:
         st.error("Usuário não autenticado.")
 
-@st.cache_data
+#@st.cache_data
 def show_cinemas(): 
     token = st.session_state.get("token")
     if token:
@@ -203,7 +203,7 @@ def show_cinemas():
     else:
         st.error("Usuário não autenticado.")
 
-@st.cache_data
+#@st.cache_data
 def show_salas():
     token = st.session_state.get("token")
     if token:
@@ -221,7 +221,7 @@ def show_salas():
     else:
         st.error("Usuário não autenticado.")
 
-@st.cache_data
+#@st.cache_data
 def show_servicos(): 
     token = st.session_state.get("token")
     if token:
