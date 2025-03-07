@@ -33,7 +33,7 @@ def read_empresas(
     db: Session = Depends(database.get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
-    if current_user.tipo_usuario != "Admin" and current_user.tipo_usuario != "Encarregado":
+    if current_user.tipo_usuario == "Gerente":
         raise HTTPException(status_code=400, detail="Usuáio sem permissão")
 
     return db.query(models.EmpresaCinema).all()

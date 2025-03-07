@@ -150,13 +150,13 @@ def read_servicos(
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     if current_user.tipo_usuario == "Encarregado":
-        servicos = db.query(models.Servico).filter(models.Servico.status == "Recusado") # Comparar com id do encarregado
+        servicos = db.query(models.Servico).filter(models.Servico.status == "Recusado" and models.Servico.encarregado_id == current_user.id)
 
     elif current_user.tipo_usuario == "Gerente":
-        servicos = db.query(models.Servico).filter(models.Servico.status == "Pendente" and models.Sala.id == models.Servico.sala_id).join(models.Sala).filter(models.Sala.cinema_id == current_user.cinema_id).join(models.Cinema).filter(models.Cinema.id == current_user.cinema_id)
+        servicos = db.query(models.Servico).filter(models.Servico.status == "Pendente").join(models.Sala).filter(models.Sala.cinema_id == current_user.cinema_id).join(models.Cinema).filter(models.Cinema.id == current_user.cinema_id)
 
     elif current_user.tipo_usuario == "Representante":
-        servicos = db.query(models.Servico).filter(models.Servico.status == "Concluido").join(models.Sala).filter(models.Sala.cinema_id == current_user.cinema_id).join(models.Cinema).filter(models.Cinema.empresa_id == current_user.empresa_id)
+        servicos = db.query(models.Servico).filter(models.Servico.status == "Concluído").join(models.Sala).filter(models.Sala.cinema_id == models.Cinema.id).join(models.Cinema).filter(models.Cinema.empresa_id == current_user.empresa_id)
 
     else:
         servicos = db.query(models.Servico)
