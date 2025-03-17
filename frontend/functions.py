@@ -230,6 +230,11 @@ def callback_servicos():
             # Atualizando Session State
             st.session_state.servicos = servicos_filtrados
 
+            # ******************* DEBUG *******************
+
+            st.write(current_user)
+            st.write(servicos_filtrados)
+
 # ============ READ ============
 
 def show_usuarios(): 
