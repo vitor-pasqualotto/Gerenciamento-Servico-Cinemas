@@ -159,7 +159,7 @@ def callback_usuario_especifico():
     token = st.session_state.get("token")
 
     # Verfica se o token existe
-    if token:
+    if not token:
         return None
 
     # Request para recuperar Usuarios Específico
