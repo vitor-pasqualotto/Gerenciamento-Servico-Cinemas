@@ -1,9 +1,0 @@
-backend/__pycache__/
-backend/routes/__pycache__/
-static
-static
-.env
-readme.txt
-dev.db
-venv/
-teste.py
