@@ -49,8 +49,8 @@ def create_usuario(
     db: Session = Depends(database.get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
-    if current_user.tipo_usuario != "Admin":
-        raise HTTPException(status_code=400, detail="Usuáio sem permissão")
+    #if current_user.tipo_usuario != "Admin":
+        #raise HTTPException(status_code=400, detail="Usuáio sem permissão")
 
     db_usuario = db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first()
     if db_usuario:
