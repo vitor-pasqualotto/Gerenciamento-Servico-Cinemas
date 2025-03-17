@@ -18,7 +18,7 @@ if not DATABASE_URL:
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 # Cria engine
-engine = create_engine(DATABASE_URL, connect_args={"client_encoding": "utf8"})
+engine = create_engine(DATABASE_URL)
 
 # Definindo SessionLocal
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
