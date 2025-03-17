@@ -7,14 +7,50 @@ from typing import List
 
 router = APIRouter()
 
+@router.post("/usuarios/public/", response_model=schemas.Usuario)
+def create_usuario_public(
+    usuario: schemas.UsuarioCreate, 
+    db: Session = Depends(database.get_db)
+):
+    """Cria um usuário APENAS se não houver um Admin no sistema"""
+
+    # Verifica se já existe um Admin cadastrado
+    admin_existente = db.query(models.Usuario).filter(models.Usuario.tipo_usuario == "Admin").first()
+    
+    if admin_existente:
+        raise HTTPException(status_code=403, detail="Já existe um Admin cadastrado. Usuários devem ser criados por um Admin.")
+
+    # Verifica se o e-mail já está cadastrado
+    db_usuario = db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first()
+    if db_usuario:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+
+    # Criptografa a senha antes de salvar
+    hashed_password = auth.get_password_hash(usuario.senha)
+
+    # Criar o primeiro usuário (geralmente um Admin)
+    novo_usuario = models.Usuario(
+        nome=usuario.nome,
+        email=usuario.email,
+        senha=hashed_password,
+        tipo_usuario=usuario.tipo_usuario,  # Pode ser Admin, Gerente, etc.
+        empresa_id=usuario.empresa_id,
+        cinema_id=usuario.cinema_id
+    )
+    db.add(novo_usuario)
+    db.commit()
+    db.refresh(novo_usuario)
+
+    return novo_usuario
+
 @router.post("/usuarios/", response_model=schemas.Usuario)
 def create_usuario(
     usuario: schemas.UsuarioCreate, 
     db: Session = Depends(database.get_db),
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
-    #if current_user.tipo_usuario != "Admin":
-        #raise HTTPException(status_code=400, detail="Usuáio sem permissão")
+    if current_user.tipo_usuario != "Admin":
+        raise HTTPException(status_code=400, detail="Usuáio sem permissão")
 
     db_usuario = db.query(models.Usuario).filter(models.Usuario.email == usuario.email).first()
     if db_usuario:
