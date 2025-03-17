@@ -2,7 +2,8 @@ from functions import *
 import streamlit as st
 import requests
 
-API_BASE_URL = "http://localhost:8000"
+#API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "https://gerenciamento-servico-cinemas-production.up.railway.app"
 
 # ============ APLICAÇÃO PRINCIPAL ============
 
