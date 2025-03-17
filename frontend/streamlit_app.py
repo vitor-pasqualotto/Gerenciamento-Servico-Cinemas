@@ -27,7 +27,8 @@ def main():
             if "usuario_especifico" not in st.session_state:
                 st.session_state.usuario_especifico = {}
             if "servicos" not in st.session_state:
-                st.session_state.servicos = {}
+                #st.session_state.servicos = {}
+                callback_servicos()
 
             tipo_usuario = user.get("tipo_usuario")
 
