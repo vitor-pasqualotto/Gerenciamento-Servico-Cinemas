@@ -890,6 +890,7 @@ def update_servico():
     
     # Chama callback_servicos
     callback_servicos()
+    st.write(st.session_state.servicos) # *************** DEBUG ***************
 
     # Exibir serviços em forma de botões clicáveis
     servicos = st.session_state.servicos
