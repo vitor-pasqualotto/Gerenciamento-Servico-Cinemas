@@ -4,7 +4,7 @@ import requests
 import os
 
 #API_BASE_URL = "http://localhost:8000"
-API_BASE_URL = "https://gerenciamento-servico-cinemas-production.up.railway.app"
+API_BASE_URL = "https://gerenciamento-servico-cinemas-production.up.railway.app/" 
 
 # ============ LOGIN ============
 
