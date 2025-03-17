@@ -194,7 +194,7 @@ def callback_servicos():
         # Request para recuperar Serviços e Salas
         headers = {"Authorization": f"Bearer {token}"}
         response_servicos = requests.get(f"{API_BASE_URL}/servicos/", headers=headers)
-        response_salas = requests.get(f"{API_BASE_URL}/salas", headers=headers)
+        response_salas = requests.get(f"{API_BASE_URL}/salas/", headers=headers)
 
         # Verifica Status Code 
         if response_servicos.status_code == 200 and response_salas.status_code == 200:
@@ -228,7 +228,7 @@ def callback_servicos():
                 servicos_filtrados = []
 
             # Atualizando Session State
-            st.session_state.servicos = servicos_filtrados
+            st.session_state['servicos'] = servicos_filtrados
 
 # ============ READ ============
 
