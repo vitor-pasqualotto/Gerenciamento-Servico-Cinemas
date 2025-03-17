@@ -892,7 +892,7 @@ def update_servico():
     callback_servicos()
 
     # Exibir serviços em forma de botões clicáveis
-    servicos = st.session_state["servicos"]
+    servicos = st.session_state.servicos
 
     # Verfica se os serviços existem e lança mensagem de erro
     if not servicos:
